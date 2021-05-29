@@ -1,0 +1,54 @@
+// Sets a constant direction vector or calculates direction vectors between P and an origin 
+// and writes that to the points as a ray direction vector attribute. The origin can be
+// read from the transforms of an object or defined as a constant vector.
+
+int mode = chi("mode");
+int space = chi("space");
+int origin_type = chi("origin_type");
+int project = chi("project");
+int transform_points = chi("transform_points");
+int axis = chi("axis");
+int dir_type = chi("dir_type");
+int inv = chi("invert");
+
+float max_dist = chf("max_dist");
+
+string attribname = chs("attribute_name");
+string origin = chs("origin");
+string object = chs("object");
+string path = opfullpath("../..");
+
+vector ray, pos, hitpos, uvw;
+vector dir = chv("dir");
+vector origin_pos = chv("origin_pos");
+
+string op = mode == 0 ? origin : object;
+matrix M = optransform(op);
+matrix Q = optransform(path);
+
+Q = invert(Q);
+
+if(mode == 0){
+    pos = origin_type ? origin_pos * Q : cracktransform(0, 0, 0, {0,0,0}, M * Q);
+    ray = normalize(@P - pos);
+    }
+    
+else{
+    if(dir_type){
+        matrix3 R = (matrix3)M;
+        if     (axis == 0)   dir = -set(R.xx, R.xy, R.xz);
+        else if(axis == 1)   dir = -set(R.yx, R.yy, R.yz);
+        else                 dir = -set(R.zx, R.zy, R.zz);
+        }
+    dir = normalize(dir);
+    ray = space ? vtransform(dir, Q) : dir;
+    }
+
+ray *= inv ? -1 : 1;
+setpointattrib(0, attribname, @ptnum, ray, "set");    
+
+if(project){
+    int hitprim = intersect(1, @P, ray * max_dist, hitpos, uvw);
+    if(transform_points)
+        @P = hitpos;
+    }

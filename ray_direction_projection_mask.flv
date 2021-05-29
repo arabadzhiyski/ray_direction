@@ -1,0 +1,60 @@
+// Nearly identical to ray_direction.flv except it traces occluding geo and can write a mask attribute
+
+int mode = chi("mode");
+int space = chi("space");
+int origin_type = chi("origin_type");
+int project = chi("project");
+int traceocclgeo = chi("traceocclgeo");
+int axis = chi("axis");
+int dir_type = chi("dir_type");
+int inv = chi("invert");
+
+float max_dist = chf("max_dist");
+
+string attribname = chs("attribute_name");
+string origin = chs("origin");
+string object = chs("object");
+string path = opfullpath("../..");
+
+vector ray, pos;
+vector dir = chv("dir");
+vector origin_pos = chv("origin_pos");
+
+string op = mode == 0 ? origin : object;
+matrix M = optransform(op);
+matrix Q = optransform(path);
+Q = invert(Q);
+
+if(mode == 0){
+    pos = origin_type ? origin_pos * Q : cracktransform(0, 0, 0, {0,0,0}, M * Q);
+    ray = @P - pos;
+    }
+    
+else{
+    if(dir_type){
+        matrix3 R = (matrix3)M;
+        if     (axis == 0)   dir = -set(R.xx, R.xy, R.xz);
+        else if(axis == 1)   dir = -set(R.yx, R.yy, R.yz);
+        else                 dir = -set(R.zx, R.zy, R.zz);
+        }
+    ray = space ? vtransform(dir, Q) : dir;
+    }
+    
+ray *= inv ? -1 : 1;
+
+if(project){
+    int hit = -1;
+    int hitoccl = -1;
+    vector posbias = @P + (v@N * 0.001);
+    vector hitpos, hitocclpos, uvw, uvwoccl;
+    
+    hit = intersect(1, posbias, -ray * max_dist, hitpos, uvw);
+    float mask = (hit != -1) ? 1 : 0;
+    
+    if(traceocclgeo){
+        hitoccl = intersect(2, posbias, -ray * max_dist, hitocclpos, uvwoccl);
+        mask = (hitoccl == -1) ? mask : 0;
+        }
+    
+    setpointattrib(0, attribname, @ptnum, mask, "set");
+    }
